@@ -2,8 +2,6 @@ import random
 
 class Sperner:
 
-
-
   # preferences:  n-dimensional array of preferences, e.g. preferences[10][5][10] = [1,2,1] means at prices $10, $5, $10, users prefer room 1, 2, and 1
   def sperner(self, n, k, preferences, totalBalance):
     payments = list(xrange(0, totalBalance + 1, totalBalance / (k + 1)))
@@ -18,17 +16,12 @@ class Sperner:
       print "\n"
     """
 
-
-
     solutionSinks = self.solve(n, k + 2, allocations)#[[0,0,2],[0,2,0],[2,0,0]]
     if solutionSinks == None:
       return
     #print solutionSinks
     finalSolution = self.averageFair(n, solutionSinks, payments)
     return finalSolution
-
-
-
 
 
   def createGraph(self, n, k, iterator, indices, payments):
