@@ -2,37 +2,40 @@ import random
 
 class Sperner:
 
-  # preferences:  n-dimensional array of preferences, e.g. preferences[10][5][10] = [1,2,1] means at prices $10, $5, $10, users prefer room 1, 2, and 1
+  # calculates spener for a given n agents/resources, k (meaning k+2) price intervals between 0 and totalBalance for each resource
   def sperner(self, n, k, preferences, totalBalance):
+    # determine the payments for k (k+2 values) subdivisions of totalBalance
     payments = list(xrange(0, totalBalance + 1, totalBalance / (k + 1)))
     paymentsLength = len(payments)
+
     self.agentPreferences = preferences
+
+    # determine allocations by creating the graph for our given values
     allocations = self.createGraph(n, k+2, n, [], payments)
 
-    """
-    for i in allocations:
-      for j in i:
-        print j
-      print "\n"
-    """
+    # determine the sinks or the inner triangle with satisfying assignment vertices as a perimeter
+    # by walking the graph contained in allocations
+    solutionSinks = self.solve(n, k + 2, allocations)
 
-    solutionSinks = self.solve(n, k + 2, allocations)#[[0,0,2],[0,2,0],[2,0,0]]
+    # if we have found no solution we return (this should only happen if an invariant is naively broken)
     if solutionSinks == None:
       return
-    #print solutionSinks
+    # average the satisfying assignments that are the solutionSinks to find the final solution
     finalSolution = self.averageFair(n, solutionSinks, payments)
     return finalSolution
 
 
+
+# create a n^k size representation of the sperner simplexes graph
   def createGraph(self, n, k, iterator, indices, payments):
     allocations = [[[0 for _ in xrange(k)] for _ in xrange(k)] for _ in xrange(k)]
 
-    # create corners
+    # assign corners, each of the unique resources to an agent
     allocations[k - 1][0][0] = self.assignAgentToRoom([2], [k-1, 0, 0], n)
     allocations[0][k - 1][0] = self.assignAgentToRoom([3], [0, k-1, 0], n)
     allocations[0][0][k - 1] = self.assignAgentToRoom([1], [0, 0, k-1], n)
 
-    # create edges
+    # assign each outer vertex from resource to an agent, such that these resources match the corners containing them
     for i in xrange(k):
       for j in xrange(k):
         allocations[i][j][0] = self.assignAgentToRoom([3], [i, j, 0], n)
@@ -45,27 +48,31 @@ class Sperner:
       for l in xrange(k):
         allocations[i][0][l] = self.assignAgentToRoom([2], [i, 0, l], n)
 
-    # randomly "color" rest of graph
+    # randomly "color" rest of graph, assigning any given room to an agent by top preference
     for i in xrange(k):
       for j in xrange(k):
         for l in xrange(k):
+          # ignore nodes which are illogical in our "squareification" of the graph
           if payments[i] + payments[j] + payments[l] != payments[len(payments) - 1]:
             allocations[i][j][l] = None
+          # if this node is not a corner or outer edge, we then assign a random "color" to it
           elif allocations[i][j][l] == 0: 
             allocations[i][j][l] = self.assignAgentToRoom([1,2,3], [i, j, l], n)
 
     return allocations
 
 
-      
+  # given a set of possible resources and costs for each resource, find an agent who prefers a room
   def assignAgentToRoom(self, room, costs, n):
     agentPreferences = [self.agentPreferences[x][costs[0]][costs[1]][costs[2]] for x in xrange(n)]
     for preference in agentPreferences:
       if preference in room:
         return agentPreferences.index(preference) + 1
 
+    # due to the invariance of the algorithm, we need an error value for a naive preference set which breaks the outer-coloring invariants
     return 40
 
+  # arbitrarily (randomly) generates test preference values, returning a strict preference ordering for each agent at each cost assignment of resources
   def generatePreferences(self, n, k):
     preferences = [[[[0 for _ in xrange(k)] for _ in xrange(k)] for _ in xrange(k)] for _ in xrange(n)]
     for i in xrange(k):
@@ -76,12 +83,14 @@ class Sperner:
 
     return preferences
 
+  # given a created Sperner's graph and allocation assignment, search the graph to find satisfying one-to-one assignments
+  # and find the inner triangle which is surrounded by these one-to-one assignments
+  # take the average of these values to get the approximation ideal solution for a given k
   def solve(self, n, k, allocations):
     remaining, sinks, allocation = [], [], []
     for i in xrange(k):
       for j in xrange(k):
         for l in xrange(k):
-          #print allocations[i][j][l], i, j, l
           if allocations[i][j][l] == None:
             continue
           if allocations[i][j][l] == 40:
@@ -106,7 +115,8 @@ class Sperner:
 
 
 
-
+  # given a set of satisfying one-to-one assignment vertices, average their values to get the 
+  # approximate ideal solution for a given k
   def averageFair(self, n, sinks, payments):
     returnArray = []
     for bidder in xrange(n):
@@ -117,7 +127,8 @@ class Sperner:
     return returnArray
 
 
-
+  # simple constant-space, linear-time function to determine if there are any duplicate assignments
+  # if there are not, we have a non-conflicting one-to-one assignment
   def check_satisfying(self, choices):
     for choice in choices:
       choiceIndex = choice - 1
@@ -128,6 +139,9 @@ class Sperner:
     return True
 
 
+  # find all neighbors of a vertex, such that we can determine which are also in the perimeter 
+  # of the satisfying inner triangle.
+  # We naively consider all possibilities and filter out those which are illogical
   def getNeighbors(self, i, j, l, k, allocations):
     neighbors = [[i+ 1, j-1, l], [i-1, j+1, l], [i, j-1, l+1], [i, j+1, l-1],  [i-1, j, l+1], [i+1, j, l-1]] 
     for neighbor in neighbors:
@@ -137,16 +151,7 @@ class Sperner:
           continue
     return [[allocations[x][y][z], [x,y,z]] for [x,y,z] in neighbors]
 
-
-  def testInput(self):
-    return True
-
-
-
-#print reduceSperner(2, 2, [[5,2,3],[4,3,2]], 1)
-
-#print testInput()
-
+#### sample functionality ####
 newSperner = Sperner()
 preferences = newSperner.generatePreferences(3, 3)
 
